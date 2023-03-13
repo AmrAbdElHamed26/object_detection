@@ -4,11 +4,13 @@ import 'package:tflite/tflite.dart';
 import 'package:camera/camera.dart';
 import 'package:get/get.dart';
 import 'package:image/image.dart' as img ;
+import 'package:tflite_flutter/tflite_flutter.dart';
 export 'package:google_mlkit_commons/google_mlkit_commons.dart';
 
 
 class ScanController extends GetxController {
 
+  var recognitions ;
   late List<CameraDescription> _cameras;
   late CameraController _cameraController;
   late CameraImage _cameraImage ;
@@ -20,9 +22,8 @@ class ScanController extends GetxController {
   final RxBool _isInitialized = RxBool(false );
   bool get isInitialized => _isInitialized.value ;
   CameraController get cameraController => _cameraController ;
-
   List<Uint8List> get imageList => _imageList ;
-
+  get reco => recognitions ;
 
   @override
   void dispose(){
@@ -34,11 +35,10 @@ class ScanController extends GetxController {
 
   Future<void> _initTFlite() async {
 
-
-    String? res = await Tflite.loadModel(
+    await Tflite.loadModel(
         model: "assets/mobilenet_v1_1.0_224.tflite",
         labels: "assets/labels.txt",
-        numThreads: 1, // defaults to 1
+        numThreads: 2, // defaults to 1
         isAsset: true, // defaults to true, set to false to load resources outside assets
         useGpuDelegate: false // defaults to false, set to true to use GPU delegate
     );
@@ -56,10 +56,9 @@ class ScanController extends GetxController {
 
       _cameraController.startImageStream((image) {
         _imageCount ++ ;
-        if(_imageCount == 100 ){
+        if(_imageCount == 20 ){
           _imageCount = 0 ;
           print ('errrrrror');
-
           objectRecoginition(image); // using tensorflow
 
         }
@@ -97,7 +96,7 @@ class ScanController extends GetxController {
   * */
   Future<void> objectRecoginition (CameraImage cameraImage) async {
 
-    var recognitions = await Tflite.runModelOnFrame(
+    recognitions = await Tflite.runModelOnFrame(
         bytesList: cameraImage.planes.map((plane) {return plane.bytes;}).toList(),// required
         imageHeight: cameraImage.height,
         imageWidth: cameraImage.width,
@@ -112,7 +111,7 @@ class ScanController extends GetxController {
     print(recognitions);
   }
 
-  void capturre (){
+  void capturre ()async {
 
     img.Image image = img.Image.fromBytes(
         _cameraImage.width,
@@ -122,31 +121,15 @@ class ScanController extends GetxController {
     );
 
     Uint8List  jpeg  = Uint8List.fromList(img.encodeJpg(image));
+
+
+
     _imageList.add(jpeg);
     _imageList.refresh();
     print('added ${jpeg.length} and  ${_imageList.length}');
 
   }
 
-
-  /*
-  * object detection model using google ml kit
-  *
-  * need InputImage instead of Camera Image
-  * */
-  void getImageLabels (InputImage cameraImage) async {
-
-    ImageLabeler imageLabeler = ImageLabeler(options: ImageLabelerOptions()) ;
-    List<ImageLabel> labels = await imageLabeler.processImage(cameraImage );
-    for (ImageLabel imgLabel in labels){
-      String lblText = imgLabel.label ;
-      double conf = imgLabel.confidence ;
-
-      print('$lblText with ${conf*100}\n');
-    }
-
-
-  }
 
 
 

@@ -18,7 +18,6 @@ class CameraScreen extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           CameraViewer(),
-          TopImageViewer(),
           CaptureButton(),
 
         ],
