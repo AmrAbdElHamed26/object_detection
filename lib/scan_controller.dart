@@ -1,11 +1,10 @@
 import 'dart:typed_data';
-import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart' ;
 import 'package:tflite/tflite.dart';
 import 'package:camera/camera.dart';
 import 'package:get/get.dart';
 import 'package:image/image.dart' as img ;
-import 'package:tflite_flutter/tflite_flutter.dart';
 export 'package:google_mlkit_commons/google_mlkit_commons.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 
 class ScanController extends GetxController {
@@ -14,10 +13,11 @@ class ScanController extends GetxController {
   late List<CameraDescription> _cameras;
   late CameraController _cameraController;
   late CameraImage _cameraImage ;
+  final FlutterTts flutterTts = FlutterTts();
 
   final RxList<Uint8List> _imageList = RxList([]);
   int _imageCount = 0 ;
-
+  bool _captureFlag = false;
 
   final RxBool _isInitialized = RxBool(false );
   bool get isInitialized => _isInitialized.value ;
@@ -55,15 +55,22 @@ class ScanController extends GetxController {
       _isInitialized.value = true ;
 
       _cameraController.startImageStream((image) {
-        _imageCount ++ ;
-        if(_imageCount == 20 ){
+
+
+
+        /*_imageCount ++ ;
+        if(_imageCount == 300 ){
           _imageCount = 0 ;
           print ('errrrrror');
           objectRecoginition(image); // using tensorflow
-
         }
-        //print(DateTime.now().millisecondsSinceEpoch);
+        //print(DateTime.now().millisecondsSinceEpoch);*/
         _cameraImage = image ;
+        if(_captureFlag){
+          objectRecoginition(_cameraImage);
+          _captureFlag = false ;
+        }
+
       });
 
 
@@ -108,10 +115,21 @@ class ScanController extends GetxController {
         asynch: true        // defaults to true
     );
 
-    print(recognitions);
+
+    String myOutput ="Sorry I Can\'t Recognize this Object ";
+    double acc = 0 ;
+    for (int i = 0 ; i < recognitions.length ; i ++ ){
+        if(recognitions[i]['confidence'] > acc && recognitions[i]['confidence'] > .50  ){
+          myOutput = "my recognition is ${recognitions[0]['label']} ";
+          acc = recognitions[i]['confidence'];
+        }
+    }
+    _textToSpeech(myOutput);
+    print(recognitions[0]);
   }
 
   void capturre ()async {
+    _captureFlag = true ;
 
     img.Image image = img.Image.fromBytes(
         _cameraImage.width,
@@ -123,13 +141,19 @@ class ScanController extends GetxController {
     Uint8List  jpeg  = Uint8List.fromList(img.encodeJpg(image));
 
 
-
     _imageList.add(jpeg);
     _imageList.refresh();
     print('added ${jpeg.length} and  ${_imageList.length}');
 
   }
 
+  void _textToSpeech (String txt)async {
+
+    await flutterTts.setLanguage("en-US");
+    await flutterTts.setPitch(1);
+    await flutterTts.speak(txt);
+
+  }
 
 
 
