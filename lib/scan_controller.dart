@@ -64,7 +64,10 @@ class ScanController extends GetxController {
           print ('errrrrror');
           objectRecoginition(image); // using tensorflow
         }
-        //print(DateTime.now().millisecondsSinceEpoch);*/
+        */
+
+        //print(DateTime.now().millisecondsSinceEpoch);
+
         _cameraImage = image ;
         if(_captureFlag){
           objectRecoginition(_cameraImage);
@@ -125,7 +128,7 @@ class ScanController extends GetxController {
         }
     }
     _textToSpeech(myOutput);
-    print(recognitions[0]);
+    print(recognitions);
   }
 
   void capturre ()async {
