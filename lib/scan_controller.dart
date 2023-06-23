@@ -36,8 +36,8 @@ class ScanController extends GetxController {
   Future<void> _initTFlite() async {
 
     await Tflite.loadModel(
-        model: "assets/mobilenet_v1_1.0_224.tflite",
-        labels: "assets/labels.txt",
+        model: "assets/objects_mobilenet.tflite",
+        labels: "assets/objects_mobilenet.txt",
         numThreads: 2, // defaults to 1
         isAsset: true, // defaults to true, set to false to load resources outside assets
         useGpuDelegate: false // defaults to false, set to true to use GPU delegate
