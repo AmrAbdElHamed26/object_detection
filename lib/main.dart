@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:objectreco2/scan_controller.dart';
+import 'package:objectreco2/splash_screen.dart';
 
 
 late List<CameraDescription>?cameras ;
@@ -17,10 +18,14 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: ScanController(),
       title: 'CameraApp',
+      initialRoute: "splash",
+      routes: {
+       "splash": (context)=>const SplashScreen(),
+        "main_screen" :(context)=>const ScanController(),
+      },
 
     );
   }
