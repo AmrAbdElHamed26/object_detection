@@ -1,90 +1,57 @@
-import 'dart:typed_data';
-import 'package:tflite/tflite.dart';
 import 'package:camera/camera.dart';
-import 'package:get/get.dart';
-import 'package:image/image.dart' as img ;
-export 'package:google_mlkit_commons/google_mlkit_commons.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
+import 'package:tflite/tflite.dart';
+import '../../../main.dart';
 
-class ScanController extends GetxController {
-
-  var recognitions ;
-  late List<CameraDescription> _cameras;
-  late CameraController _cameraController;
-  late CameraImage _cameraImage ;
-  final FlutterTts flutterTts = FlutterTts();
-
-  final RxList<Uint8List> _imageList = RxList([]);
-  int _imageCount = 0 ;
-  bool _captureFlag = false;
-
-  final RxBool _isInitialized = RxBool(false );
-  bool get isInitialized => _isInitialized.value ;
-  CameraController get cameraController => _cameraController ;
-  List<Uint8List> get imageList => _imageList ;
-  get reco => recognitions ;
+class ScanController extends StatefulWidget {
+  const ScanController({Key? key}) : super(key: key);
 
   @override
-  void dispose(){
-    _isInitialized.value = false ;
-    _cameraController.dispose();
+  State<ScanController> createState() => _ScanControllerState();
+}
+
+class _ScanControllerState extends State<ScanController> {
+  CameraImage? imgCamera;
+  late CameraController controller;
+  final FlutterTts flutterTts = FlutterTts();
+
+
+  Future<dynamic> loadModel() async {
     Tflite.close();
-    super.dispose();
-  }
-
-  Future<void> _initTFlite() async {
-
     await Tflite.loadModel(
         model: "assets/objects_mobilenet.tflite",
         labels: "assets/objects_mobilenet.txt",
         numThreads: 2, // defaults to 1
         isAsset: true, // defaults to true, set to false to load resources outside assets
         useGpuDelegate: false // defaults to false, set to true to use GPU delegate
-    );
-
+        );
   }
 
+  @override
+  void initState() {
+    super.initState();
+    loadModel();
+    controller = CameraController(cameras![0], ResolutionPreset.max );
+    controller.initialize().then((_) {
+      if (!mounted) {
+        return;
+      }
 
-  Future<void> initCamera () async {
-
-    _cameras = await availableCameras();
-    _cameraController = CameraController(_cameras[0], ResolutionPreset.max);
-    _cameraController.initialize().then((_) {
-
-      _isInitialized.value = true ;
-
-      _cameraController.startImageStream((image) {
-
-
-
-        /*_imageCount ++ ;
-        if(_imageCount == 300 ){
-          _imageCount = 0 ;
-          print ('errrrrror');
-          objectRecoginition(image); // using tensorflow
-        }
-        */
-
-        //print(DateTime.now().millisecondsSinceEpoch);
-
-        _cameraImage = image ;
-        if(_captureFlag){
-          objectRecoginition(_cameraImage);
-          _captureFlag = false ;
-        }
+      controller.startImageStream((image) {
+        imgCamera = image;
 
       });
-
-
+      setState(() {});
     }).catchError((Object e) {
       if (e is CameraException) {
         switch (e.code) {
           case 'CameraAccessDenied':
-          // Handle access errors here.
+            // Handle access errors here.
             break;
           default:
-          // Handle other errors here.
+            // Handle other errors here.
             break;
         }
       }
@@ -92,64 +59,71 @@ class ScanController extends GetxController {
   }
 
   @override
-  void onInit() {
-    initCamera();
-    _initTFlite();
-    super.onInit();
+  void dispose() {
+    controller.dispose();
+    super.dispose();
   }
 
+  runModelOnStreamFrames() async {
+    if (imgCamera != null) {
+      var recognitions = await Tflite.runModelOnFrame(
+        bytesList: imgCamera!.planes.map((plane) {
+          return plane.bytes;
+        }).toList(),
+        imageHeight: imgCamera!.height,
+        imageWidth: imgCamera!.width,
+        imageMean: 127.5,
+        imageStd: 127.5,
+        rotation: 90,
+        numResults: 5,
+        threshold: 0.1,
+        asynch: true,
+      );
+      
+      List<String> allLabels = [];
+      for (int i = 0 ; i < recognitions!.length ; i ++ ){
+        print(recognitions[i]['label']);
+        allLabels.add(recognitions[i]['label']);
+      }
 
-  /*
-  * object detection model using tensor flow
+      String result ="";
+      for (int i = 0 ; i < allLabels!.length - 2  ; i ++ ){
+        result += allLabels[i];
+        result+= " , " ;
+      }
+      result = result + allLabels[allLabels!.length-2] + " and " + allLabels[allLabels!.length-1];
 
-  * * need solve error
-  * */
-  Future<void> objectRecoginition (CameraImage cameraImage) async {
-
-    recognitions = await Tflite.runModelOnFrame(
-        bytesList: cameraImage.planes.map((plane) {return plane.bytes;}).toList(),// required
-        imageHeight: cameraImage.height,
-        imageWidth: cameraImage.width,
-        imageMean: 127.5,   // defaults to 127.5
-        imageStd: 127.5,    // defaults to 127.5
-        rotation: 90,       // defaults to 90, Android only
-        numResults: 2,      // defaults to 5
-        threshold: 0.1,     // defaults to 0.1
-        asynch: true        // defaults to true
-    );
-
-
-    String myOutput ="Sorry I Can\'t Recognize this Object ";
-    double acc = 0 ;
-    for (int i = 0 ; i < recognitions.length ; i ++ ){
-        if(recognitions[i]['confidence'] > acc && recognitions[i]['confidence'] > .50  ){
-          myOutput = "my recognition is ${recognitions[0]['label']} ";
-          acc = recognitions[i]['confidence'];
-        }
+      result = "This image containes " + result ;
+      _textToSpeech(result) ;
+      print(result);
     }
-    _textToSpeech(myOutput);
-    print(recognitions);
   }
 
-  void capturre ()async {
-    _captureFlag = true ;
+  @override
+  Widget build(BuildContext context) {
+    if (!controller.value.isInitialized) {
+      return Container();
+    }
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.indigo,
+        title: Text("Object Detection App"),
+        centerTitle: true,
+      ),
+      body: SizedBox(
+        width: MediaQuery.of(context).size.width,
+        height: MediaQuery.of(context).size.height,
+        child: CameraPreview(controller),
+      ),
+      floatingActionButton: FloatingActionButton(
 
-    img.Image image = img.Image.fromBytes(
-        _cameraImage.width,
-        _cameraImage.height,
-        _cameraImage.planes[0].bytes ,
-        format: img.Format.bgra
+        backgroundColor: Colors.indigo,
+        onPressed: runModelOnStreamFrames,
+        child: Icon(Icons.camera_alt),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
-
-    Uint8List  jpeg  = Uint8List.fromList(img.encodeJpg(image));
-
-
-    _imageList.add(jpeg);
-    _imageList.refresh();
-    print('added ${jpeg.length} and  ${_imageList.length}');
-
   }
-
   void _textToSpeech (String txt)async {
 
     await flutterTts.setLanguage("en-US");
@@ -158,7 +132,5 @@ class ScanController extends GetxController {
 
   }
 
-
-
-
 }
+

@@ -1,13 +1,13 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get_navigation/src/root/get_material_app.dart';
+import 'package:objectreco2/scan_controller.dart';
 
-import 'camera/camera_screen.dart';
-import 'global_bindings.dart';
+
+late List<CameraDescription>?cameras ;
 
 void main()async {
   WidgetsFlutterBinding.ensureInitialized();
-  final cameras = await availableCameras();
+  cameras = await availableCameras();
   runApp(const MyApp());
 }
 
@@ -17,10 +17,10 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      home: CameraScreen(),
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: ScanController(),
       title: 'CameraApp',
-      initialBinding: GlobalBindings(),
 
     );
   }
