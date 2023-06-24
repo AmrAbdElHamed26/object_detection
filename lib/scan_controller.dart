@@ -43,7 +43,7 @@ class _ScanControllerState extends State<ScanController> {
       controller.startImageStream((image) async {
         imgCamera = image;
 
-        if (_counter == 100) {
+        if (_counter == 50) {
           _showedText = await runModel(1);
           _counter = 0;
           setState(() {});
